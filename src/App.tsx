@@ -6,12 +6,14 @@ import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { Table, LoadingOverlay, Button, Group, Container } from '@mantine/core';
 
-import { WorkLogFormModal } from './components';
-import { useListQuery, useDeleteMutation } from './store';
+import type { WorkLog } from '@/types';
+import { WorkLogFormModal } from '@/components';
+import { useListQuery, useDeleteMutation } from '@/store';
 
 export default function App() {
   const [opened, { open, close }] = useDisclosure(false);
   const [dateFilter, setDateFilter] = useState<Date | null>(null);
+  const [editingItem, setEditingItem] = useState<WorkLog | null>(null);
 
   const dateParam = dateFilter
     ? dayjs(dateFilter).format('YYYY-MM-DD')
@@ -25,9 +27,9 @@ export default function App() {
   const handleDelete = (id: string) => {
     modals.openConfirmModal({
       title: 'Удаление записи',
-      children: 'Вы уверены, что хотите удалить эту запись?',
-      labels: { confirm: 'Удалить', cancel: 'Отмена' },
       confirmProps: { color: 'red' },
+      labels: { confirm: 'Удалить', cancel: 'Отмена' },
+      children: 'Вы уверены, что хотите удалить эту запись?',
       onConfirm: async () => {
         try {
           await remove(id).unwrap();
@@ -56,9 +58,20 @@ export default function App() {
       </Table.Td>
       <Table.Td>{value.workType.name}</Table.Td>
       <Table.Td>
-        <Button color="red" onClick={() => handleDelete(String(value.id))}>
-          Удалить
-        </Button>
+        <Group>
+          <Button
+            onClick={() => {
+              setEditingItem(value);
+              open();
+            }}
+          >
+            Редактировать
+          </Button>
+
+          <Button color="red" onClick={() => handleDelete(String(value.id))}>
+            Удалить
+          </Button>
+        </Group>
       </Table.Td>
     </Table.Tr>
   ));
@@ -67,10 +80,23 @@ export default function App() {
     <>
       <LoadingOverlay visible={isLoading} />
 
+      <WorkLogFormModal
+        opened={opened}
+        onClose={close}
+        initialData={editingItem}
+      />
+
       <Container p="lg">
         <Group justify="space-between" mb="md">
-          <h1 style={{ margin: 0 }}>Журнал работ</h1>
-          <Button onClick={open}>+ Добавить запись</Button>
+          <h1>Журнал работ</h1>
+          <Button
+            onClick={() => {
+              setEditingItem(null);
+              open();
+            }}
+          >
+            + Добавить запись
+          </Button>
         </Group>
 
         <Group mb="md">
@@ -87,8 +113,6 @@ export default function App() {
             </Button>
           )}
         </Group>
-
-        <WorkLogFormModal opened={opened} onClose={close} />
 
         {!isEmpty && (
           <Table.ScrollContainer minWidth={300}>

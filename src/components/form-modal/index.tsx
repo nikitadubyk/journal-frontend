@@ -11,49 +11,68 @@ import {
   NumberInput,
 } from '@mantine/core';
 
-import { useCreateMutation } from '../../store';
-import type { WorkLogCreateDto } from '../../types';
+import { getInputProps } from '@/utils';
+import { useCreateMutation, useUpdateMutation } from '@/store';
 
-import { initialValues, UNITS, WORK_TYPES, validationSchema } from './config';
-import dayjs from 'dayjs';
+import type { FormValues, WorkLogFormModalProps } from './types';
+import {
+  UNITS,
+  WORK_TYPES,
+  getPayload,
+  getInitialValues,
+  validationSchema,
+} from './config';
 
-interface WorkLogFormModalProps {
-  opened: boolean;
-  onClose: () => void;
-}
+const successNotify = {
+  color: 'green',
+  title: 'Успешно',
+  message: 'Запись обновлена',
+};
 
 export const WorkLogFormModal = ({
   opened,
   onClose,
+  initialData,
 }: WorkLogFormModalProps) => {
   const [create] = useCreateMutation();
+  const [update] = useUpdateMutation();
 
-  const formik = useFormik<
-    Omit<WorkLogCreateDto, 'date'> & { date: Date | null }
-  >({
-    initialValues,
+  const submitForm = async (values: FormValues) => {
+    const payload = getPayload(values);
+
+    if (initialData) {
+      await update({
+        id: String(initialData.id),
+        ...payload,
+      }).unwrap();
+
+      notifications.show(successNotify);
+
+      return;
+    }
+
+    await create(payload).unwrap();
+
+    notifications.show({
+      ...successNotify,
+      message: 'Запись добавлена в журнал',
+    });
+  };
+
+  const formik = useFormik<FormValues>({
     validationSchema,
+    enableReinitialize: true,
+    initialValues: getInitialValues(initialData),
     onSubmit: async (values, { resetForm }) => {
       try {
-        await create({
-          ...values,
-          workTypeId: Number(values.workTypeId),
-          date: dayjs(values.date).format('YYYY-MM-DD'),
-        }).unwrap();
-
-        notifications.show({
-          color: 'green',
-          title: 'Успешно',
-          message: 'Запись добавлена в журнал',
-        });
-
+        await submitForm(values);
         resetForm();
         onClose();
       } catch {
         notifications.show({
           color: 'red',
           title: 'Ошибка',
-          message: 'Не удалось добавить запись. Попробуйте снова.',
+          message: 'Не удалось сохранить запись',
         });
       }
     },
@@ -65,7 +84,12 @@ export const WorkLogFormModal = ({
   };
 
   return (
-    <Modal opened={opened} onClose={handleClose} title="Новая запись" centered>
+    <Modal
+      centered
+      opened={opened}
+      onClose={handleClose}
+      title={initialData ? 'Редактирование записи' : 'Новая запись'}
+    >
       <form onSubmit={formik.handleSubmit}>
         <Stack gap="sm">
           <DatePickerInput
@@ -73,11 +97,8 @@ export const WorkLogFormModal = ({
             label="Дата"
             withAsterisk
             valueFormat="DD/MM/YYYY"
-            value={formik.values.date}
             placeholder="Выберите дату"
-            error={formik.touched.date && formik.errors.date}
-            onBlur={() => formik.setFieldTouched('date', true)}
-            onChange={(val) => formik.setFieldValue('date', val)}
+            {...getInputProps(formik, 'date')}
           />
 
           <TextInput
@@ -95,20 +116,14 @@ export const WorkLogFormModal = ({
               label="Объём"
               placeholder="0"
               decimalScale={2}
-              value={formik.values.volume}
-              error={formik.touched.volume && formik.errors.volume}
-              onBlur={() => formik.setFieldTouched('volume', true)}
-              onChange={(val) => formik.setFieldValue('volume', val)}
+              {...getInputProps(formik, 'volume')}
             />
 
             <Select
               data={UNITS}
               withAsterisk
               label="Единица"
-              value={formik.values.unit}
-              error={formik.touched.unit && formik.errors.unit}
-              onBlur={() => formik.setFieldTouched('unit', true)}
-              onChange={(val) => formik.setFieldValue('unit', val)}
+              {...getInputProps(formik, 'unit')}
             />
           </Group>
 
@@ -117,12 +132,7 @@ export const WorkLogFormModal = ({
             data={WORK_TYPES}
             label="Вид работы"
             placeholder="Выберите вид работы"
-            onBlur={() => formik.setFieldTouched('workTypeId', true)}
-            onChange={(val) => formik.setFieldValue('workTypeId', val)}
-            error={formik.touched.workTypeId && formik.errors.workTypeId}
-            value={
-              formik.values.workTypeId ? String(formik.values.workTypeId) : null
-            }
+            {...getInputProps(formik, 'workTypeId')}
           />
 
           <Group justify="flex-end" mt="md">
@@ -130,7 +140,7 @@ export const WorkLogFormModal = ({
               Отмена
             </Button>
             <Button type="submit" loading={formik.isSubmitting}>
-              Добавить
+              {initialData ? 'Сохранить' : 'Добавить'}
             </Button>
           </Group>
         </Stack>

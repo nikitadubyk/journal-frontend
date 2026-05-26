@@ -1,4 +1,9 @@
+import dayjs from 'dayjs';
 import * as Yup from 'yup';
+
+import type { WorkLog } from '@/types';
+
+import type { FormValues } from './types';
 
 // TODO: сделать получение через api
 export const WORK_TYPES = [
@@ -32,10 +37,16 @@ export const validationSchema = Yup.object({
     .required('Обязательное поле'),
 });
 
-export const initialValues = {
-  volume: 0,
-  date: null,
-  unit: 'м³',
-  workTypeId: 0,
-  workerName: '',
-};
+export const getInitialValues = (data?: WorkLog | null): FormValues => ({
+  unit: data?.unit || 'м³',
+  volume: data?.volume ?? 0,
+  workerName: data?.workerName || '',
+  workTypeId: data?.workType?.id?.toString() || '',
+  date: data?.date ? dayjs(data.date).toDate() : null,
+});
+
+export const getPayload = (values: FormValues) => ({
+  ...values,
+  workTypeId: Number(values.workTypeId),
+  date: dayjs(values.date).format('YYYY-MM-DD'),
+});

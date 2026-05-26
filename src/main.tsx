@@ -9,8 +9,9 @@ import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 
+import { store } from '@/store';
+
 import App from './App.tsx';
-import { store } from './store/store.ts';
 
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>
